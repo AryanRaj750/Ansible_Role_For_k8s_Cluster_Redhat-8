@@ -1,0 +1,49 @@
+---
+- name: "k8s multi-worker setup"
+  block:
+     - name: "install docker"
+       package:
+           name: docker
+           state: present
+     - name: "start docker service"
+       service:
+           name: docker
+           state: started
+           enabled: true
+     - name: "yum reconfigure for k8s"
+       copy:
+           src: "kubernetes.repo"
+           dest: "/etc/yum.repos.d/"
+     - name: "install kubelet package"
+       package:
+           name: "kubeadm"
+           state: present
+     - name: "start kubelet service"
+       service:
+           name: kubelet
+           state: started
+           enabled: true
+     - name: "setting driver as systemd"
+       copy:
+           src: "daemon.json"
+           dest: "/etc/docker/"
+       register: daemon
+     - name: "restart docker service"
+       service:
+          name: "docker"
+          state: restarted
+       #when: daemon.changed == true
+     - name: "install iproute-tc package"
+       package:
+           name: "iproute-tc"
+           state: present
+     - name: "enable kernel bridge setting"
+       copy:
+           src: "k8s.conf"
+           dest: "/etc/sysctl.d/"
+     - name: "join workner node to master node"
+       command: "{{ hostvars['Dummy_Host']['token'] }}"
+  rescue:
+     - name: "why failed, debuging..."
+       debug:
+           msg: "It looks like your workerNode is already joined. Make ensure by running command 'kubectl get nodes -o wide' on your masterNode"
